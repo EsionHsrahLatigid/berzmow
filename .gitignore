@@ -1,0 +1,12 @@
+.DS_Store
+build/
+cmake-build-*/
+_deps/
+artifacts/
+
+*.jucer
+*.log
+
+CMakeCache.txt
+CMakeFiles/
+compile_commands.json
