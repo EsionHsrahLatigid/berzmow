@@ -17,6 +17,7 @@ endif()
 
 if(BERZMOW_BUILD_PLUGIN)
     include(FetchContent)
+    find_package(Python3 COMPONENTS Interpreter REQUIRED)
 
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/JUCE/CMakeLists.txt")
         add_subdirectory(JUCE)
@@ -84,6 +85,9 @@ if(BERZMOW_BUILD_PLUGIN)
         COMMAND ${CMAKE_COMMAND} -E remove_directory "${berzmow_staged_products}/Standalone"
         COMMAND ${CMAKE_COMMAND} -E copy_directory
                 "${berzmow_juce_products}/VST3" "${berzmow_staged_products}/VST3"
+        COMMAND ${Python3_EXECUTABLE}
+                "${CMAKE_CURRENT_SOURCE_DIR}/cmake/NormalizeVst3ModuleInfo.py"
+                "${berzmow_staged_products}/VST3/Berzmow.vst3/Contents/Resources/moduleinfo.json"
         COMMAND ${CMAKE_COMMAND} -E copy_directory
                 "${berzmow_juce_products}/Standalone" "${berzmow_staged_products}/Standalone")
 
@@ -123,6 +127,7 @@ if(BERZMOW_BUILD_PLUGIN)
             COMMAND ${CMAKE_COMMAND}
                     -DBERZMOW_STAGED_DIR=${BERZMOW_ARTIFACT_DIR}/$<CONFIG>
                     -DBERZMOW_EXPECT_AU=$<BOOL:${APPLE}>
+                    -DPython3_EXECUTABLE=${Python3_EXECUTABLE}
                     -P ${CMAKE_CURRENT_SOURCE_DIR}/Tests/VerifyArtifacts.cmake)
     endif()
 endif()
