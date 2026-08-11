@@ -73,6 +73,8 @@ private:
     }
 
     void resetDspState() noexcept;
+    void updateFixedFilterCoefficients();
+    void updateAutomatedFilterState (float preEmphasisDb, float toneHz, float resonance);
 
     //==============================================================================
     // ---- DSP ----
@@ -96,6 +98,9 @@ private:
     float fbState[2] { 0.0f, 0.0f };
 
     double currentSampleRate = 44100.0;
+    float cachedPreEmphasisDb = -1.0f;
+    float cachedToneHz = -1.0f;
+    float cachedResonance = -1.0f;
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BerzmowAudioProcessor)

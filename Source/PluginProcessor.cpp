@@ -49,6 +49,11 @@ namespace
     {
         return juce::jlimit (0.0f, 1.0f, norm01);
     }
+
+    inline bool hasChanged (float a, float b) noexcept
+    {
+        return std::abs (a - b) > 1.0e-6f;
+    }
 }
 
 BerzmowAudioProcessor::BerzmowAudioProcessor()
@@ -131,6 +136,11 @@ void BerzmowAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
         svf[ch].setType (juce::dsp::StateVariableTPTFilterType::bandpass);
     }
 
+    updateFixedFilterCoefficients();
+    cachedPreEmphasisDb = -1.0f;
+    cachedToneHz = -1.0f;
+    cachedResonance = -1.0f;
+
     resetDspState();
 }
 
@@ -152,6 +162,48 @@ void BerzmowAudioProcessor::resetDspState() noexcept
     }
 
     limiter.reset();
+}
+
+void BerzmowAudioProcessor::updateFixedFilterCoefficients()
+{
+    for (int ch = 0; ch < 2; ++ch)
+    {
+        *highPass[ch].coefficients = juce::dsp::IIR::ArrayCoefficients<float>::makeHighPass (
+            currentSampleRate, 30.0f);
+
+        *fbHighPass[ch].coefficients = juce::dsp::IIR::ArrayCoefficients<float>::makeHighPass (
+            currentSampleRate, 40.0f);
+    }
+}
+
+void BerzmowAudioProcessor::updateAutomatedFilterState (float preEmphasisDb, float toneHz, float resonance)
+{
+    if (hasChanged (preEmphasisDb, cachedPreEmphasisDb))
+    {
+        const auto peak = juce::dsp::IIR::ArrayCoefficients<float>::makePeakFilter (
+            currentSampleRate, 3000.0f, 0.7f, dbToLin (preEmphasisDb));
+
+        for (int ch = 0; ch < 2; ++ch)
+            *preEmphasis[ch].coefficients = peak;
+
+        cachedPreEmphasisDb = preEmphasisDb;
+    }
+
+    if (hasChanged (toneHz, cachedToneHz))
+    {
+        for (int ch = 0; ch < 2; ++ch)
+            svf[ch].setCutoffFrequency (toneHz);
+
+        cachedToneHz = toneHz;
+    }
+
+    if (hasChanged (resonance, cachedResonance))
+    {
+        for (int ch = 0; ch < 2; ++ch)
+            svf[ch].setResonance (resonance);
+
+        cachedResonance = resonance;
+    }
 }
 
 void BerzmowAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
@@ -184,25 +236,8 @@ void BerzmowAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
     const float outDb     = mapOutputDb (outN) + (limiterBypass ? -12.0f : 0.0f);
     const float outGain   = dbToLin (outDb);
 
-    // ---- Update coefficients (block-rate is fine for MVP) ----
-    // Pre-emphasis: a gentle peak around 3kHz to increase perceived loudness
     const float preEmphDb = danger ? 9.0f : 6.0f; // Danger boosts more
-    for (int ch = 0; ch < 2; ++ch)
-    {
-        *preEmphasis[ch].coefficients = *juce::dsp::IIR::Coefficients<float>::makePeakFilter (
-            currentSampleRate, 3000.0f, 0.7f, dbToLin (preEmphDb));
-
-        // Output HP: keep rumble/DC down (helps headroom + stability)
-        *highPass[ch].coefficients = *juce::dsp::IIR::Coefficients<float>::makeHighPass (
-            currentSampleRate, 30.0);
-
-        // FB HP: slightly higher cut to prevent DC runaway inside loop
-        *fbHighPass[ch].coefficients = *juce::dsp::IIR::Coefficients<float>::makeHighPass (
-            currentSampleRate, 40.0);
-
-        svf[ch].setCutoffFrequency (toneHz);
-        svf[ch].setResonance (reso);
-    }
+    updateAutomatedFilterState (preEmphDb, toneHz, reso);
 
     // ---- Main synthesis ----
     bool badDetected = false;

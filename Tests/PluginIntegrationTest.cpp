@@ -12,6 +12,18 @@ bool check(bool condition, const char* message)
         std::cerr << "[FAIL] " << message << '\n';
     return condition;
 }
+
+void setParameter(juce::AudioProcessorValueTreeState& state, const char* id, float value)
+{
+    if (auto* parameter = state.getParameter(id))
+        parameter->setValueNotifyingHost(parameter->convertTo0to1(value));
+}
+
+void setParameter(juce::AudioProcessorValueTreeState& state, const char* id, bool value)
+{
+    if (auto* parameter = state.getParameter(id))
+        parameter->setValueNotifyingHost(value ? 1.0f : 0.0f);
+}
 } // namespace
 
 int main()
@@ -61,6 +73,39 @@ int main()
         for (int channel = 0; channel < audio.getNumChannels(); ++channel)
             for (int sample = 0; sample < audio.getNumSamples(); ++sample)
                 passed &= check(std::isfinite(audio.getSample(channel, sample)), "processed audio should remain finite");
+    }
+
+    const int variableBlockSizes[] { 1, 7, 32, 64, 127, 256 };
+    for (int pass = 0; pass < 4; ++pass)
+    {
+        setParameter(processor.apvts, "drive", pass % 2 == 0 ? 0.0f : 1.0f);
+        setParameter(processor.apvts, "feedback", pass % 2 == 0 ? 0.05f : 1.0f);
+        setParameter(processor.apvts, "tone", pass % 2 == 0 ? 0.0f : 1.0f);
+        setParameter(processor.apvts, "reso", pass % 2 == 0 ? 0.0f : 1.0f);
+        setParameter(processor.apvts, "noiseMix", pass % 2 == 0 ? 0.0f : 1.0f);
+        setParameter(processor.apvts, "output", pass % 2 == 0 ? 0.0f : 1.0f);
+        setParameter(processor.apvts, "danger", pass % 2 != 0);
+        setParameter(processor.apvts, "limiterBypass", pass == 3);
+
+        for (const auto blockSize : variableBlockSizes)
+        {
+            juce::AudioBuffer<float> audio(2, blockSize);
+            for (int sample = 0; sample < audio.getNumSamples(); ++sample)
+            {
+                const auto value = static_cast<float>(0.05 * std::sin(2.0 * juce::MathConstants<double>::pi
+                                                                      * (55.0 + pass * 37.0) * sample / 44100.0));
+                audio.setSample(0, sample, value);
+                audio.setSample(1, sample, -value);
+            }
+
+            juce::MidiBuffer midi;
+            processor.processBlock(audio, midi);
+
+            for (int channel = 0; channel < audio.getNumChannels(); ++channel)
+                for (int sample = 0; sample < audio.getNumSamples(); ++sample)
+                    passed &= check(std::isfinite(audio.getSample(channel, sample)),
+                                    "automated variable-block output should remain finite");
+        }
     }
 
     if (passed)
