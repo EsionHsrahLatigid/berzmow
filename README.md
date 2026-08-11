@@ -52,6 +52,10 @@ Override the staging root with `-DBERZMOW_ARTIFACT_DIR=/absolute/path`.
 - Required format: VST3
 - Additional formats: AU on Apple platforms and Standalone
 
+## License
+
+This repository's source code is licensed under the MIT License. See [LICENSE](LICENSE).
+
 ## JUCE licensing
 
 JUCE 8 modules are dual-licensed under AGPLv3 and the commercial JUCE license. Review the [JUCE 8.0.15 license](https://github.com/juce-framework/JUCE/blob/8.0.15/LICENSE.md) and choose a compatible licensing path before distributing plug-in binaries. This repository does not vendor JUCE or grant a JUCE commercial license.
