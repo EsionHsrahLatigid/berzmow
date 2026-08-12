@@ -1,22 +1,31 @@
 #pragma once
 
 #include <JuceHeader.h>
+#include <ehl/juce_design/EhlDesign.h>
 #include "PluginProcessor.h"
 
-class BerzmowAudioProcessorEditor final : public juce::AudioProcessorEditor
+class BerzmowAudioProcessorEditor final : public juce::AudioProcessorEditor,
+                                          private juce::Timer
 {
 public:
     explicit BerzmowAudioProcessorEditor (BerzmowAudioProcessor&);
-    ~BerzmowAudioProcessorEditor() override = default;
+    ~BerzmowAudioProcessorEditor() override;
 
     void paint (juce::Graphics&) override;
     void resized() override;
 
 private:
+    void timerCallback() override;
+    void updateDisplay();
+
     BerzmowAudioProcessor& audioProcessor;
+
+    ehl::juce_design::LookAndFeel lookAndFeel;
+    ehl::juce_design::ParameterDisplay display{ehl::juce_design::DisplayKind::distortion};
 
     juce::Slider drive, feedback, tone, reso, noiseMix, output;
     juce::ToggleButton danger, limiterBypass;
+    juce::Label driveLabel, feedbackLabel, toneLabel, resoLabel, noiseMixLabel, outputLabel;
 
     using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
     using ButtonAttachment = juce::AudioProcessorValueTreeState::ButtonAttachment;

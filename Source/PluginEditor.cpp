@@ -1,8 +1,20 @@
 #include "PluginEditor.h"
 
+namespace
+{
+void initLabel (juce::Label& label, const juce::String& text)
+{
+    label.setText (text, juce::dontSendNotification);
+    ehl::juce_design::styleLabel (label);
+    label.setJustificationType (juce::Justification::centred);
+}
+} // namespace
+
 BerzmowAudioProcessorEditor::BerzmowAudioProcessorEditor (BerzmowAudioProcessor& p)
 : AudioProcessorEditor (&p), audioProcessor (p)
 {
+    setLookAndFeel (&lookAndFeel);
+
     initKnob (drive,    "Drive");
     initKnob (feedback, "FB");
     initKnob (tone,     "Tone");
@@ -12,9 +24,25 @@ BerzmowAudioProcessorEditor::BerzmowAudioProcessorEditor (BerzmowAudioProcessor&
 
     danger.setButtonText ("Danger");
     limiterBypass.setButtonText ("Limiter Bypass");
+    ehl::juce_design::styleToggle (danger);
+    ehl::juce_design::styleToggle (limiterBypass);
+
+    initLabel (driveLabel, "DRIVE");
+    initLabel (feedbackLabel, "FB");
+    initLabel (toneLabel, "TONE");
+    initLabel (resoLabel, "RESO");
+    initLabel (noiseMixLabel, "NOISE");
+    initLabel (outputLabel, "OUT");
 
     addAndMakeVisible (danger);
     addAndMakeVisible (limiterBypass);
+    addAndMakeVisible (display);
+    addAndMakeVisible (driveLabel);
+    addAndMakeVisible (feedbackLabel);
+    addAndMakeVisible (toneLabel);
+    addAndMakeVisible (resoLabel);
+    addAndMakeVisible (noiseMixLabel);
+    addAndMakeVisible (outputLabel);
 
     // Attachments
     aDrive = std::make_unique<SliderAttachment> (audioProcessor.apvts, "drive", drive);
@@ -27,53 +55,66 @@ BerzmowAudioProcessorEditor::BerzmowAudioProcessorEditor (BerzmowAudioProcessor&
     aDanger        = std::make_unique<ButtonAttachment> (audioProcessor.apvts, "danger", danger);
     aLimiterBypass = std::make_unique<ButtonAttachment> (audioProcessor.apvts, "limiterBypass", limiterBypass);
 
-    setSize (520, 220);
+    setResizable (true, true);
+    setResizeLimits (ehl::juce_design::Metrics::minimumWidth,
+                     ehl::juce_design::Metrics::minimumHeight,
+                     ehl::juce_design::Metrics::maximumWidth,
+                     ehl::juce_design::Metrics::maximumHeight);
+    setSize (ehl::juce_design::Metrics::defaultWidth,
+             ehl::juce_design::Metrics::defaultHeight);
+    updateDisplay();
+    startTimerHz (15);
+}
+
+BerzmowAudioProcessorEditor::~BerzmowAudioProcessorEditor()
+{
+    stopTimer();
+    setLookAndFeel (nullptr);
 }
 
 void BerzmowAudioProcessorEditor::initKnob (juce::Slider& s, const juce::String& name)
 {
-    s.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
-    s.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 70, 18);
     s.setName (name);
+    ehl::juce_design::styleSlider (s);
     addAndMakeVisible (s);
 }
 
 void BerzmowAudioProcessorEditor::paint (juce::Graphics& g)
 {
-    g.fillAll (juce::Colours::black);
-
-    g.setColour (juce::Colours::white);
-    g.setFont (15.0f);
-    g.drawText ("Berzmow", 10, 10, getWidth() - 20, 20, juce::Justification::left);
-
-    g.setFont (12.0f);
-    auto drawLabel = [&] (juce::Slider& s)
-    {
-        g.drawText (s.getName(), s.getX(), s.getY() - 16, s.getWidth(), 14, juce::Justification::centred);
-    };
-
-    drawLabel (drive);
-    drawLabel (feedback);
-    drawLabel (tone);
-    drawLabel (reso);
-    drawLabel (noiseMix);
-    drawLabel (output);
+    ehl::juce_design::paintEditorChrome (g, getLocalBounds(),
+                                         "Berzmow",
+                                         "feedback noise distortion");
 }
 
 void BerzmowAudioProcessorEditor::resized()
 {
-    const int pad = 10;
-    const int knobW = 80;
-    const int knobH = 90;
-    const int y0 = 45;
+    display.setBounds (ehl::juce_design::parameterDisplayArea (getLocalBounds()));
+    ehl::juce_design::layoutLabelledControl (
+        driveLabel, drive, ehl::juce_design::controlCell (getLocalBounds(), 0));
+    ehl::juce_design::layoutLabelledControl (
+        feedbackLabel, feedback, ehl::juce_design::controlCell (getLocalBounds(), 1));
+    ehl::juce_design::layoutLabelledControl (
+        toneLabel, tone, ehl::juce_design::controlCell (getLocalBounds(), 2));
+    ehl::juce_design::layoutLabelledControl (
+        resoLabel, reso, ehl::juce_design::controlCell (getLocalBounds(), 3));
+    ehl::juce_design::layoutLabelledControl (
+        noiseMixLabel, noiseMix, ehl::juce_design::controlCell (getLocalBounds(), 4));
+    ehl::juce_design::layoutLabelledControl (
+        outputLabel, output, ehl::juce_design::controlCell (getLocalBounds(), 5));
+    danger.setBounds (ehl::juce_design::controlCell (getLocalBounds(), 6).reduced (8, 24));
+    limiterBypass.setBounds (ehl::juce_design::controlCell (getLocalBounds(), 7).reduced (8, 24));
+}
 
-    drive.setBounds    (pad + 0*(knobW+pad), y0, knobW, knobH);
-    feedback.setBounds (pad + 1*(knobW+pad), y0, knobW, knobH);
-    tone.setBounds     (pad + 2*(knobW+pad), y0, knobW, knobH);
-    reso.setBounds     (pad + 3*(knobW+pad), y0, knobW, knobH);
-    noiseMix.setBounds (pad + 4*(knobW+pad), y0, knobW, knobH);
-    output.setBounds   (pad + 5*(knobW+pad), y0, knobW, knobH);
+void BerzmowAudioProcessorEditor::timerCallback() { updateDisplay(); }
 
-    danger.setBounds        (pad, y0 + knobH + 20, 140, 24);
-    limiterBypass.setBounds (pad + 150, y0 + knobH + 20, 160, 24);
+void BerzmowAudioProcessorEditor::updateDisplay()
+{
+    const auto normalized = [this](const char* id)
+    {
+        if (auto* parameter = audioProcessor.apvts.getParameter (id))
+            return parameter->getValue();
+        return 0.0f;
+    };
+    display.setValues ({ normalized ("drive"), normalized ("feedback"),
+                         normalized ("tone"), normalized ("reso") });
 }
