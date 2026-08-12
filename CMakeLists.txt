@@ -179,6 +179,7 @@ if(BERZMOW_BUILD_PLUGIN)
         add_test(
             NAME BerzmowArtifactChecks
             COMMAND ${CMAKE_COMMAND}
+                    -DBUILD_CONFIG=$<CONFIG>
                     -DSTAGE_DIR=${berzmow_staged_products}
                     -DSLUG=berzmow
                     -DEXPECT_AU=$<BOOL:${APPLE}>
