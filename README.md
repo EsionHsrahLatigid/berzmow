@@ -34,13 +34,25 @@ ctest --test-dir build/release --output-on-failure
 Final products are staged under:
 
 ```text
-artifacts/Release/
-├── AU/Berzmow.component          # macOS only
-├── Standalone/Berzmow.app        # macOS
-└── VST3/Berzmow.vst3
+artifacts/plugin-release/macos-arm64/standalone/berzmow_standalone_plugin.app
+artifacts/plugin-release/macos-arm64/vst3/berzmow_vst3_plugin.vst3
+artifacts/plugin-release/macos-arm64/au/berzmow_au_plugin.component
+artifacts/plugin-release/macos-arm64/ARTIFACTS.txt
+artifacts/plugin-release/windows-x64/standalone/berzmow_standalone_plugin.exe
+artifacts/plugin-release/windows-x64/vst3/berzmow_vst3_plugin.vst3
+artifacts/plugin-release/windows-x64/ARTIFACTS.txt
 ```
 
 Override the staging root with `-DBERZMOW_ARTIFACT_DIR=/absolute/path`.
+
+On local macOS builds outside CI, VST3 and AU formats are also copied to the
+current user's standard plug-in folders:
+
+- `~/Library/Audio/Plug-Ins/VST3/Berzmow.vst3`
+- `~/Library/Audio/Plug-Ins/Components/Berzmow.component`
+
+Standalone remains in the artifact tree. CI and non-macOS builds do not copy by
+default. Override with `-DEHL_COPY_PLUGIN_AFTER_BUILD=ON` or `OFF`.
 
 ## Plug-in identity
 
